@@ -4,13 +4,14 @@ import { ChatInput } from './src/components/ChatInput';
 import { GroceryItem } from './src/components/GroceryItem';
 import { loadGroceryList, saveGroceryList, GroceryItem as GroceryItemType } from './src/services/storage';
 import { parseGroceryList } from './src/services/ai';
-import { Trash2 } from 'lucide-react-native';
+import { Trash2, ChevronDown, ChevronRight } from 'lucide-react-native';
 
 export default function App() {
   const [items, setItems] = useState<GroceryItemType[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
   const [activeTab, setActiveTab] = useState<'list' | 'archive'>('list');
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const initList = async () => {
@@ -41,19 +42,51 @@ export default function App() {
     await saveGroceryList(newItems);
   };
 
+  const handleClearDay = (date: string) => {
+    Alert.alert(
+      "Apagar Dia",
+      `Tens a certeza que queres apagar todas as compras de ${date}?`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        { 
+          text: "Apagar", 
+          style: "destructive",
+          onPress: async () => {
+            const newItems = items.filter(item => {
+              const itemDate = new Date(item.completedAt || 0).toLocaleDateString('pt-PT');
+              return !item.completed || itemDate !== date;
+            });
+            setItems(newItems);
+            await saveGroceryList(newItems);
+          }
+        }
+      ]
+    );
+  };
+
+  const toggleSection = (date: string) => {
+    setCollapsedSections(prev => ({
+      ...prev,
+      [date]: !prev[date]
+    }));
+  };
+
   const handleClearList = () => {
-    if (items.length === 0) return;
+    const activeItemsCount = items.filter(item => !item.completed).length;
+    if (activeItemsCount === 0) return;
+
     Alert.alert(
       "Apagar Lista",
-      "Tens a certeza que queres apagar toda a lista de compras?",
+      "Tens a certeza que queres apagar os itens por comprar?",
       [
         { text: "Cancelar", style: "cancel" },
         {
           text: "Apagar",
           style: "destructive",
           onPress: async () => {
-            setItems([]);
-            await saveGroceryList([]);
+            const onlyArchived = items.filter(item => item.completed);
+            setItems(onlyArchived);
+            await saveGroceryList(onlyArchived);
           }
         }
       ]
@@ -122,7 +155,7 @@ export default function App() {
           <Text style={styles.headerTitle}>Lista de Compras</Text>
           <Text style={styles.headerSubtitle}>{activeTab === 'list' ? activeItems.length : archivedItems.length} itens {activeTab === 'list' ? 'na lista' : 'no arquivo'}</Text>
         </View>
-        {items.length > 0 && (
+        {activeTab === 'list' && activeItems.length > 0 && (
           <TouchableOpacity onPress={handleClearList} style={styles.clearButton}>
             <Trash2 color="#EF4444" size={24} />
           </TouchableOpacity>
@@ -171,15 +204,36 @@ export default function App() {
           <SectionList
             sections={sections}
             keyExtractor={item => item.id}
-            renderItem={({ item }) => (
-              <GroceryItem
-                item={item}
-                onToggle={handleToggleItem}
-                onRemove={handleRemoveItem}
-              />
-            )}
+            renderItem={({ item, section }) => {
+              if (collapsedSections[section.title]) return null;
+              return (
+                <GroceryItem
+                  item={item}
+                  onToggle={handleToggleItem}
+                  onRemove={handleRemoveItem}
+                />
+              );
+            }}
             renderSectionHeader={({ section: { title } }) => (
-              <Text style={styles.sectionHeader}>{title}</Text>
+              <View style={styles.sectionHeaderContainer}>
+                <TouchableOpacity 
+                  style={styles.sectionTitleButton}
+                  onPress={() => toggleSection(title)}
+                >
+                  {collapsedSections[title] ? (
+                    <ChevronRight color="#9CA3AF" size={20} />
+                  ) : (
+                    <ChevronDown color="#9CA3AF" size={20} />
+                  )}
+                  <Text style={styles.sectionHeader}>{title}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  onPress={() => handleClearDay(title)}
+                  style={styles.deleteDayButton}
+                >
+                  <Trash2 color="#EF4444" size={18} />
+                </TouchableOpacity>
+              </View>
             )}
             contentContainerStyle={styles.listContainer}
             ListEmptyComponent={
@@ -278,9 +332,24 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#F9FAFB',
+    marginLeft: 8,
+  },
+  sectionHeaderContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     backgroundColor: '#111827',
-    paddingVertical: 8,
+    paddingVertical: 12,
     marginTop: 8,
-    marginBottom: 12,
+  },
+  sectionTitleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  deleteDayButton: {
+    padding: 8,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderRadius: 6,
   },
 });
