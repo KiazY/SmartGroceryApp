@@ -21,7 +21,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSubmit, isLoading }) => 
     <View style={styles.container}>
       <TextInput
         style={styles.input}
-        placeholder="O que precisas de comprar? (ex: 2 leites)"
+        placeholder="O que precisas de comprar? (ex: 2 pacotes de leite)"
         placeholderTextColor="#9CA3AF"
         value={text}
         onChangeText={setText}

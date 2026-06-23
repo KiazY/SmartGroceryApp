@@ -3,7 +3,7 @@ import { StyleSheet, View, Text, FlatList, SectionList, KeyboardAvoidingView, Pl
 import { ChatInput } from './src/components/ChatInput';
 import { GroceryItem } from './src/components/GroceryItem';
 import { loadGroceryList, saveGroceryList, GroceryItem as GroceryItemType } from './src/services/storage';
-import { parseGroceryList } from './src/services/ai';
+import { parseGroceryList, ensureModelReady } from './src/services/llm';
 import { Trash2, ChevronDown, ChevronRight } from 'lucide-react-native';
 
 export default function App() {
@@ -12,6 +12,8 @@ export default function App() {
   const [isInitializing, setIsInitializing] = useState(true);
   const [activeTab, setActiveTab] = useState<'list' | 'archive'>('list');
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+  const [modelProgress, setModelProgress] = useState(0);
+  const [modelReady, setModelReady] = useState(false);
 
   useEffect(() => {
     const initList = async () => {
@@ -20,6 +22,13 @@ export default function App() {
       setIsInitializing(false);
     };
     initList();
+
+    ensureModelReady(setModelProgress)
+      .then(() => setModelReady(true))
+      .catch((error) => {
+        console.error('Failed to load on-device model:', error);
+        Alert.alert('Erro', 'Não foi possível preparar o modelo de IA local. Reinicia a app para tentar novamente.');
+      });
   }, []);
 
   const handleToggleItem = async (id: string) => {
@@ -109,7 +118,7 @@ export default function App() {
       setItems(updatedList);
       await saveGroceryList(updatedList);
     } catch (error) {
-      Alert.alert("Erro", "Não foi possível processar o teu pedido. Verifica a tua API key e tenta novamente.");
+      Alert.alert("Erro", "Não foi possível processar o teu pedido. Tenta novamente.");
     } finally {
       setIsLoading(false);
     }
@@ -161,6 +170,17 @@ export default function App() {
           </TouchableOpacity>
         )}
       </View>
+
+      {!modelReady && (
+        <View style={styles.modelBanner}>
+          <ActivityIndicator size="small" color="#3B82F6" />
+          <Text style={styles.modelBannerText}>
+            {modelProgress < 1
+              ? `A preparar IA local... ${Math.round(modelProgress * 100)}%`
+              : 'A carregar modelo...'}
+          </Text>
+        </View>
+      )}
 
       <View style={styles.tabContainer}>
         <TouchableOpacity
@@ -243,7 +263,7 @@ export default function App() {
             }
           />
         )}
-        {activeTab === 'list' && <ChatInput onSubmit={handleSendPrompt} isLoading={isLoading} />}
+        {activeTab === 'list' && <ChatInput onSubmit={handleSendPrompt} isLoading={isLoading || !modelReady} />}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -304,6 +324,19 @@ const styles = StyleSheet.create({
   emptySubtext: {
     fontSize: 14,
     color: '#9CA3AF',
+  },
+  modelBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: '#1F2937',
+    gap: 8,
+  },
+  modelBannerText: {
+    color: '#9CA3AF',
+    fontSize: 13,
   },
   tabContainer: {
     flexDirection: 'row',

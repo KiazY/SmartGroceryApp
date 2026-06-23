@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ParsedItem } from './ai';
+import { ParsedItem } from './llm';
 
 const STORAGE_KEY = '@grocery_list';
 
