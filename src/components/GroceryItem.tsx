@@ -26,7 +26,7 @@ export const GroceryItem: React.FC<GroceryItemProps> = ({ item, onToggle, onRemo
           <Text style={[styles.name, item.completed && styles.completedText]}>
             {item.name}
           </Text>
-          <Text style={styles.quantity}>{item.quantity}</Text>
+          <Text style={styles.quantity}>{item.quantity} {item.unit || 'un'}</Text>
         </View>
       </TouchableOpacity>
 
