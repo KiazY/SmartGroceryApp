@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
-import { View, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
-import { Send } from 'lucide-react-native';
+import React, { useRef, useState } from 'react';
+import { View, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { Send, Mic, Square } from 'lucide-react-native';
+import { useDictation } from '../hooks/useDictation';
+import { useTheme } from '../theme/ThemeContext';
 
 interface ChatInputProps {
   onSubmit: (text: string) => void;
@@ -8,7 +10,27 @@ interface ChatInputProps {
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({ onSubmit, isLoading }) => {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
   const [text, setText] = useState('');
+  const dictationBaseTextRef = useRef('');
+
+  const { isListening, startListening, stopListening } = useDictation({
+    onTranscript: (transcript) => {
+      const base = dictationBaseTextRef.current;
+      setText(base ? `${base} ${transcript}` : transcript);
+    },
+    onError: (error) => {
+      if (error === 'language-not-supported') {
+        Alert.alert(
+          'Ditado indisponível',
+          'O reconhecimento de voz em português só funciona com o pacote de idioma instalado no dispositivo (sem ligação à internet). Verifica nas definições de voz/teclado do telemóvel se o português está disponível offline.'
+        );
+      } else {
+        Alert.alert('Erro no ditado', 'Não foi possível reconhecer a tua voz. Tenta novamente.');
+      }
+    },
+  });
 
   const handleSend = () => {
     if (text.trim() && !isLoading) {
@@ -17,17 +39,45 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSubmit, isLoading }) => 
     }
   };
 
+  const handleMicPress = async () => {
+    if (isListening) {
+      stopListening();
+      return;
+    }
+
+    dictationBaseTextRef.current = text.trim();
+    const started = await startListening();
+    if (!started) {
+      Alert.alert(
+        'Permissão necessária',
+        'Para dictar precisamos de acesso ao microfone e ao reconhecimento de voz. Ativa as permissões nas definições do telemóvel.'
+      );
+    }
+  };
+
   return (
     <View style={styles.container}>
       <TextInput
         style={styles.input}
         placeholder="O que precisas de comprar? (ex: 2 pacotes de leite)"
-        placeholderTextColor="#9CA3AF"
+        placeholderTextColor={colors.textMuted}
         value={text}
         onChangeText={setText}
         multiline
         maxLength={200}
+        editable={!isListening}
       />
+      <TouchableOpacity
+        style={[styles.button, styles.micButton, isListening && styles.micButtonActive, isLoading && styles.buttonDisabled]}
+        onPress={handleMicPress}
+        disabled={isLoading}
+      >
+        {isListening ? (
+          <Square color="#FFFFFF" size={18} />
+        ) : (
+          <Mic color="#FFFFFF" size={20} />
+        )}
+      </TouchableOpacity>
       <TouchableOpacity
         style={[styles.button, (!text.trim() || isLoading) && styles.buttonDisabled]}
         onPress={handleSend}
@@ -43,20 +93,20 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSubmit, isLoading }) => 
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ReturnType<typeof useTheme>['colors']) => StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1F2937',
+    backgroundColor: colors.surface,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderTopWidth: 1,
-    borderTopColor: '#374151',
+    borderTopColor: colors.border,
   },
   input: {
     flex: 1,
-    backgroundColor: '#374151',
-    color: '#F9FAFB',
+    backgroundColor: colors.surfaceAlt,
+    color: colors.text,
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 10,
@@ -64,7 +114,7 @@ const styles = StyleSheet.create({
     maxHeight: 100,
   },
   button: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
     width: 44,
     height: 44,
     borderRadius: 22,
@@ -72,7 +122,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginLeft: 12,
   },
+  micButton: {
+    backgroundColor: colors.textMuted,
+  },
+  micButtonActive: {
+    backgroundColor: colors.danger,
+  },
   buttonDisabled: {
-    backgroundColor: '#4B5563',
+    backgroundColor: colors.disabled,
   },
 });

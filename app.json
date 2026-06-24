@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -14,24 +14,30 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.SmartGroceryApp"
+      "bundleIdentifier": "com.kiazy.smartgrocerylist",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Precisamos de aceder ao microfone para transformares a tua voz em texto.",
+        "NSSpeechRecognitionUsageDescription": "Precisamos de reconhecimento de voz para transformares a tua voz em texto."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.SmartGroceryApp"
+      "package": "com.kiazy.smartgrocerylist",
+      "permissions": ["android.permission.RECORD_AUDIO"]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-status-bar",
+      "expo-system-ui",
       "expo-dev-client",
       "llama.rn",
+      "expo-speech-recognition",
       [
         "expo-build-properties",
         {

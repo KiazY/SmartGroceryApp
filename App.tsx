@@ -2,11 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, FlatList, SectionList, KeyboardAvoidingView, Platform, SafeAreaView, StatusBar, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
 import { ChatInput } from './src/components/ChatInput';
 import { GroceryItem } from './src/components/GroceryItem';
+import { SettingsModal } from './src/components/SettingsModal';
 import { loadGroceryList, saveGroceryList, GroceryItem as GroceryItemType } from './src/services/storage';
 import { parseGroceryList, ensureModelReady } from './src/services/llm';
-import { Trash2, ChevronDown, ChevronRight } from 'lucide-react-native';
+import { Trash2, ChevronDown, ChevronRight, Settings } from 'lucide-react-native';
+import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 
-export default function App() {
+function AppContent() {
+  const { colors } = useTheme();
   const [items, setItems] = useState<GroceryItemType[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
@@ -14,6 +17,7 @@ export default function App() {
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
   const [modelProgress, setModelProgress] = useState(0);
   const [modelReady, setModelReady] = useState(false);
+  const [settingsVisible, setSettingsVisible] = useState(false);
 
   useEffect(() => {
     const initList = async () => {
@@ -57,8 +61,8 @@ export default function App() {
       `Tens a certeza que queres apagar todas as compras de ${date}?`,
       [
         { text: "Cancelar", style: "cancel" },
-        { 
-          text: "Apagar", 
+        {
+          text: "Apagar",
           style: "destructive",
           onPress: async () => {
             const newItems = items.filter(item => {
@@ -148,32 +152,41 @@ export default function App() {
     return parseDate(b.title) - parseDate(a.title);
   });
 
+  const styles = makeStyles(colors);
+
   if (isInitializing) {
     return (
       <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator size="large" color="#3B82F6" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#111827" />
+      <StatusBar barStyle={colors.statusBarStyle} backgroundColor={colors.background} />
       <View style={styles.header}>
         <View style={styles.headerTextContainer}>
           <Text style={styles.headerTitle}>Lista de Compras</Text>
           <Text style={styles.headerSubtitle}>{activeTab === 'list' ? activeItems.length : archivedItems.length} itens {activeTab === 'list' ? 'na lista' : 'no arquivo'}</Text>
         </View>
-        {activeTab === 'list' && activeItems.length > 0 && (
-          <TouchableOpacity onPress={handleClearList} style={styles.clearButton}>
-            <Trash2 color="#EF4444" size={24} />
+        <View style={styles.headerActions}>
+          <TouchableOpacity onPress={() => setSettingsVisible(true)} style={styles.iconButton}>
+            <Settings color={colors.textMuted} size={22} />
           </TouchableOpacity>
-        )}
+          {activeTab === 'list' && activeItems.length > 0 && (
+            <TouchableOpacity onPress={handleClearList} style={styles.clearButton}>
+              <Trash2 color={colors.danger} size={24} />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
+
+      <SettingsModal visible={settingsVisible} onClose={() => setSettingsVisible(false)} />
 
       {!modelReady && (
         <View style={styles.modelBanner}>
-          <ActivityIndicator size="small" color="#3B82F6" />
+          <ActivityIndicator size="small" color={colors.primary} />
           <Text style={styles.modelBannerText}>
             {modelProgress < 1
               ? `A preparar IA local... ${Math.round(modelProgress * 100)}%`
@@ -236,22 +249,22 @@ export default function App() {
             }}
             renderSectionHeader={({ section: { title } }) => (
               <View style={styles.sectionHeaderContainer}>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.sectionTitleButton}
                   onPress={() => toggleSection(title)}
                 >
                   {collapsedSections[title] ? (
-                    <ChevronRight color="#9CA3AF" size={20} />
+                    <ChevronRight color={colors.textMuted} size={20} />
                   ) : (
-                    <ChevronDown color="#9CA3AF" size={20} />
+                    <ChevronDown color={colors.textMuted} size={20} />
                   )}
                   <Text style={styles.sectionHeader}>{title}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
+                <TouchableOpacity
                   onPress={() => handleClearDay(title)}
                   style={styles.deleteDayButton}
                 >
-                  <Trash2 color="#EF4444" size={18} />
+                  <Trash2 color={colors.danger} size={18} />
                 </TouchableOpacity>
               </View>
             )}
@@ -269,10 +282,18 @@ export default function App() {
   );
 }
 
-const styles = StyleSheet.create({
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
+  );
+}
+
+const makeStyles = (colors: ReturnType<typeof useTheme>['colors']) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#111827',
+    backgroundColor: colors.background,
   },
   centered: {
     justifyContent: 'center',
@@ -280,13 +301,21 @@ const styles = StyleSheet.create({
   },
   header: {
     padding: 20,
-    backgroundColor: '#111827',
+    backgroundColor: colors.background,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   headerTextContainer: {
     flex: 1,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  iconButton: {
+    padding: 8,
   },
   clearButton: {
     padding: 8,
@@ -296,12 +325,12 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#3B82F6',
+    color: colors.primary,
     marginBottom: 4,
   },
   headerSubtitle: {
     fontSize: 16,
-    color: '#9CA3AF',
+    color: colors.textMuted,
   },
   keyboardView: {
     flex: 1,
@@ -318,12 +347,12 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 18,
-    color: '#F9FAFB',
+    color: colors.text,
     marginBottom: 8,
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#9CA3AF',
+    color: colors.textMuted,
   },
   modelBanner: {
     flexDirection: 'row',
@@ -331,11 +360,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 8,
     paddingHorizontal: 16,
-    backgroundColor: '#1F2937',
+    backgroundColor: colors.surface,
     gap: 8,
   },
   modelBannerText: {
-    color: '#9CA3AF',
+    color: colors.textMuted,
     fontSize: 13,
   },
   tabContainer: {
@@ -348,30 +377,30 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     alignItems: 'center',
     borderBottomWidth: 2,
-    borderBottomColor: '#374151',
+    borderBottomColor: colors.border,
   },
   activeTab: {
-    borderBottomColor: '#3B82F6',
+    borderBottomColor: colors.primary,
   },
   tabText: {
     fontSize: 16,
-    color: '#9CA3AF',
+    color: colors.textMuted,
     fontWeight: '600',
   },
   activeTabText: {
-    color: '#3B82F6',
+    color: colors.primary,
   },
   sectionHeader: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#F9FAFB',
+    color: colors.text,
     marginLeft: 8,
   },
   sectionHeaderContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#111827',
+    backgroundColor: colors.background,
     paddingVertical: 12,
     marginTop: 8,
   },
