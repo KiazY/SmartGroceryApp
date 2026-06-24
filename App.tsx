@@ -115,6 +115,7 @@ function AppContent() {
         id: Math.random().toString(36).substr(2, 9),
         name: item.name,
         quantity: item.quantity,
+        unit: item.unit,
         completed: false
       }));
 
